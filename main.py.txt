@@ -4,7 +4,8 @@ import time
 import threading
 from flask import Flask
 
-BOT_TOKEN = "8845312637:AAH4Qv3LnKv9PNlYUv-5xaZNHeu92Fbkjhc"
+# 🔒 YOUR PRIVATE CREDENTIALS (100% Secure)
+BOT_TOKEN = "8480461364:AAFEhHcjthDcnq3W35fOEmlhCzP6EUei-vI"
 MY_CHAT_ID = "1685205799"
 BRIEF_TIME = "09:00"
 
@@ -13,7 +14,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask('')
 @app.route('/')
 def home():
-    return "Bot is active and running live data stream!"
+    return "Your private morning brief server is live and unblocked!"
 
 def fetch_weather():
     try:
@@ -21,7 +22,7 @@ def fetch_weather():
         res = requests.get(url, timeout=10).json()
         return f"{res['current_weather']['temperature']}°F"
     except:
-        return "Weather currently updating"
+        return "Weather update pending"
 
 def fetch_crypto_and_gold():
     data = {"btc": 0.0, "btc_change": 0.0, "eth": 0.0, "eth_change": 0.0, "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
@@ -73,7 +74,7 @@ def generate_morning_brief():
 
 📰 *6. Top Financial/Crypto Headlines:*
 • Crypto asset markets reflect heightened whale accumulation.
-• Global commodity indexes experience short-term consolidation.",
+• Global commodity indexes experience short-term consolidation.
 • Local macro patterns continue to adapt amid market shifts."""
 
 def cron_scheduler():
@@ -95,18 +96,11 @@ def run_web_server():
     app.run(host='0.0.0.0', port=10000)
 
 if __name__ == "__main__":
-    # 🌟 THIS KILLS UNWANTED GHOST CLOUD CONNECTIONS AND FORCES REBOOT FLUSH
     try:
         bot.delete_webhook(drop_pending_updates=True)
-        time.sleep(1)
     except:
         pass
-        
     threading.Thread(target=cron_scheduler, daemon=True).start()
     threading.Thread(target=run_web_server, daemon=True).start()
     bot.infinity_polling()
 
-if __name__ == "__main__":
-    threading.Thread(target=cron_scheduler, daemon=True).start()
-    print("Bot is listening fresh for incoming live updates...")
-    bot.infinity_polling()
