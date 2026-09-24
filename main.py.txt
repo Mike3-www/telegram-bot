@@ -2,100 +2,85 @@ import telebot
 import requests
 import time
 import threading
+from flask import Flask
 
-# 🚀 YOUR GENUINE WORKING CREDENTIALS
 BOT_TOKEN = "8845312637:AAH4Qv3LnKv9PNlYUv-5xaZNHeu92Fbkjhc"
 MY_CHAT_ID = "1685205799"
-BRIEF_TIME = "09:00"  # Set to exactly 9:00 AM local time
+BRIEF_TIME = "09:00"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
+app = Flask('')
+@app.route('/')
+def home():
+    return "Bot is active and running live data stream!"
+
 def fetch_weather():
-    """Fetches genuine, real-time weather for Northbrook, IL with no cloud blocks."""
     try:
         url = "https://open-meteo.com"
         res = requests.get(url, timeout=10).json()
-        temp = res['current_weather']['temperature']
-        return f"{temp}°F"
-    except Exception:
+        return f"{res['current_weather']['temperature']}°F"
+    except:
         return "Weather currently updating"
 
 def fetch_crypto_and_gold():
-    """Pulls true live crypto prices and active spot gold metrics natively."""
     data = {"btc": 0.0, "btc_change": 0.0, "eth": 0.0, "eth_change": 0.0, "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
-    
-    # 1. Fetch genuine live prices and 24h changes from CryptoCompare
     try:
         url = "https://cryptocompare.com"
         res = requests.get(url, timeout=10).json()
         raw = res['RAW']
-        
         data["btc"] = float(raw['BTC']['USD']['PRICE'])
         data["btc_change"] = float(raw['BTC']['USD']['CHANGEPCT24HOUR'])
         data["eth"] = float(raw['ETH']['USD']['PRICE'])
         data["eth_change"] = float(raw['ETH']['USD']['CHANGEPCT24HOUR'])
         data["bnb"] = float(raw['BNB']['USD']['PRICE'])
         data["bnb_change"] = float(raw['BNB']['USD']['CHANGEPCT24HOUR'])
-        
         if data["btc"] > 0:
             data["ratio"] = data["bnb"] / data["btc"]
-    except Exception:
-        pass
+    except: pass
 
-    # 2. Fetch genuine live spot gold per ounce
     try:
         gold_url = "https://er-api.com"
         gold_res = requests.get(gold_url, timeout=10).json()
         gold_ounces = float(gold_res['rates']['XAU'])
         if gold_ounces > 0:
             data["gold"] = f"{1 / gold_ounces:,.2f}"
-    except Exception:
-        pass
-        
+    except: pass
     return data
 
 def generate_morning_brief():
-    """Assembles morning layout points cleanly with active live parameters."""
     crypto = fetch_crypto_and_gold()
     weather = fetch_weather()
-    
     btc_sign = "+" if crypto['btc_change'] >= 0 else ""
     eth_sign = "+" if crypto['eth_change'] >= 0 else ""
     bnb_sign = "+" if crypto['bnb_change'] >= 0 else ""
     
-    lines = [
-        "🌅 *Your 9:00 AM Morning Briefing*",
-        "",
-        f"📅 *1. Day & Date:* {time.strftime('%A, %B %d, %Y')}",
-        "",
-        f"🌦️ *2. Weather (Northbrook, IL):*\n• Temperature: {weather}",
-        "",
-        "🪙 *3. Crypto Prices (24h Change):*",
-        f"• **BTC:** \\${crypto['btc']:,.2f} ({btc_sign}{crypto['btc_change']:.2f}%)",
-        f"• **ETH:** \\${crypto['eth']:,.2f} ({eth_sign}{crypto['eth_change']:.2f}%)",
-        f"• **BNB:** \\${crypto['bnb']:,.2f} ({bnb_sign}{crypto['bnb_change']:.2f}%)",
-        "",
-        f"📊 *4. BNB/BTC Ratio:* `{crypto['ratio']:.6f}`",
-        "",
-        f"🏆 *5. Gold Price (Per Ounce):* \\${crypto['gold']}",
-        "",
-        "📰 *6. Top Financial/Crypto Headlines:*",
-        "• Crypto asset markets reflect heightened whale accumulation.",
-        "• Global commodity indexes experience short-term consolidation.",
-        "• Local macro patterns continue to adapt amid market shifts."
-    ]
-    return "\n".join(lines)
+    return f"""🌅 *Your 9:00 AM Morning Briefing*
+
+📅 *1. Day & Date:* {time.strftime('%A, %B %d, %Y')}
+
+🌦️ *2. Weather (Northbrook, IL):*
+• Temperature: {weather}
+
+🪙 *3. Crypto Prices (24h Change):*
+• **BTC:** \\${crypto['btc']:,.2f} ({btc_sign}{crypto['btc_change']:.2f}%)
+• **ETH:** \\${crypto['eth']:,.2f} ({eth_sign}{crypto['eth_change']:.2f}%)
+• **BNB:** \\${crypto['bnb']:,.2f} ({bnb_sign}{crypto['bnb_change']:.2f}%)
+
+📊 *4. BNB/BTC Ratio:* `{crypto['ratio']:.6f}`
+
+🏆 *5. Gold Price (Per Ounce):* \\${crypto['gold']}
+
+📰 *6. Top Financial/Crypto Headlines:*
+• Crypto asset markets reflect heightened whale accumulation.
+• Global commodity indexes experience short-term consolidation.",
+• Local macro patterns continue to adapt amid market shifts."""
 
 def cron_scheduler():
-    """Background clock loop tracking target brief times."""
     while True:
-        current_time = time.strftime("%H:%M")
-        if current_time == BRIEF_TIME:
-            brief_content = generate_morning_brief()
-            try:
-                bot.send_message(MY_CHAT_ID, brief_content, parse_mode="Markdown")
-            except Exception:
-                pass
+        if time.strftime("%H:%M") == BRIEF_TIME:
+            try: bot.send_message(MY_CHAT_ID, generate_morning_brief(), parse_mode="Markdown")
+            except: pass
             time.sleep(61)
         time.sleep(10)
 
@@ -103,10 +88,23 @@ def cron_scheduler():
 def handle_brief_command(message):
     try:
         bot.reply_to(message, "🔄 Fetching your true live metrics now, one moment...")
-        brief_content = generate_morning_brief()
-        bot.send_message(message.chat.id, brief_content, parse_mode="Markdown")
-    except Exception:
+        bot.send_message(message.chat.id, generate_morning_brief(), parse_mode="Markdown")
+    except: pass
+
+def run_web_server():
+    app.run(host='0.0.0.0', port=10000)
+
+if __name__ == "__main__":
+    # 🌟 THIS KILLS UNWANTED GHOST CLOUD CONNECTIONS AND FORCES REBOOT FLUSH
+    try:
+        bot.delete_webhook(drop_pending_updates=True)
+        time.sleep(1)
+    except:
         pass
+        
+    threading.Thread(target=cron_scheduler, daemon=True).start()
+    threading.Thread(target=run_web_server, daemon=True).start()
+    bot.infinity_polling()
 
 if __name__ == "__main__":
     threading.Thread(target=cron_scheduler, daemon=True).start()
