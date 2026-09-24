@@ -5,7 +5,7 @@ import threading
 from flask import Flask
 
 # Secure token configuration variables mapped natively
-BOT_TOKEN = "8480461364:AAE5shF4nF6YXahklS8Os6t7QJfEtqRh3p0"
+BOT_TOKEN = "8925804109:AAFGJe-Vmr5HcyagsYWgp928XtFEHpE1nAg"
 MY_CHAT_ID = "1685205799"
 BRIEF_TIME = "09:00"
 
