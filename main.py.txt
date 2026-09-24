@@ -6,7 +6,7 @@ from flask import Flask
 
 # Secure token configuration variables mapped natively
 BOT_TOKEN = "8480461364:AAE5shF4nF6YXahklS8Os6t7QJfEtqRh3p0"
-MY_CHAT_ID = "1685205799"
+MY_CHAT_ID = "8480461364"
 BRIEF_TIME = "09:00"
 
 bot_url = f"https://telegram.org{BOT_TOKEN}"
