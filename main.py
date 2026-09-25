@@ -37,17 +37,28 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
+    # --- Crypto via Binance (more reliable than CoinGecko) ---
     try:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
+        req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
-            data["btc"] = float(res["bitcoin"]["usd"])
-            data["eth"] = float(res["ethereum"]["usd"])
-            data["bnb"] = float(res["binancecoin"]["usd"])
+            data["btc"] = float(res["price"])
+        url = "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode())
+            data["eth"] = float(res["price"])
+        url = "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode())
+            data["bnb"] = float(res["price"])
+        print(f"[CRYPTO] BTC={data['btc']}, ETH={data['eth']}, BNB={data['bnb']}")
     except Exception as e:
         print(f"[Crypto prices error] {e}")
 
+    # --- Crypto 24h change ---
     try:
         if data["btc"] > 0:
             yesterday = data["btc"] * 0.985
@@ -57,6 +68,7 @@ def fetch_crypto_and_gold():
     except Exception as e:
         print(f"[Crypto change error] {e}")
 
+    # --- Gold ---
     try:
         url = "https://api.gold-api.com/price/XAU"
         req = urllib.request.Request(url, headers=headers)
@@ -74,7 +86,6 @@ def fetch_crypto_and_gold():
 
 
 def fetch_exchange_rates():
-    """Fetch PLN/USD and USD/PLN rates."""
     try:
         url = "https://open.er-api.com/v6/latest/USD"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -90,19 +101,23 @@ def fetch_exchange_rates():
 
 
 def fetch_headlines():
-    """Get top Reddit posts from r/cryptocurrency as headlines."""
+    """Get top Reddit posts from r/cryptocurrency."""
     try:
-        url = "https://www.reddit.com/r/cryptocurrency/hot/.json"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        url = "https://www.reddit.com/r/cryptocurrency/hot/.json?limit=5"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (compatible; MorningBot/1.0)'})
         with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode())
+            raw = resp.read().decode()
+            print(f"[REDDIT RAW] {raw[:300]}")
+            res = json.loads(raw)
             posts = res.get("data", {}).get("children", [])
             headlines = []
             for post in posts[:4]:
                 title = post.get("data", {}).get("title", "")
                 if title and len(title) < 150:
                     headlines.append(f"• {title}")
-            return "\n".join(headlines) if headlines else None
+            result = "\n".join(headlines) if headlines else None
+            print(f"[REDDIT] {len(headlines)} headlines fetched")
+            return result
     except Exception as e:
         print(f"[Headlines error] {e}")
     return None
@@ -148,7 +163,7 @@ def generate_morning_brief():
 
 💱 *6. Currency Exchange Rates:*
 • **USD → PLN:** {pln_per_usd:,.2f} PLN
-• **USD → PLN:** {usd_per_pln:,.4f} USD per PLN
+• **1 PLN → USD:** {usd_per_pln:,.4f} USD
 
 📰 *20. Top Financial/Crypto Headlines:*
 {news_section}"""
