@@ -5,7 +5,6 @@ import time
 from flask import Flask, request, jsonify
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-print(f"DEBUG_BOT_TOKEN: [{BOT_TOKEN}]")
 MY_CHAT_ID = os.environ.get("MY_CHAT_ID", "")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 
@@ -14,19 +13,10 @@ bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
 app = Flask('')
 
 
-bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
-
-app = Flask('')
-
-
-
-bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
-
-app = Flask('')
-
 @app.route('/')
 def home():
     return "Your private Webhook Brief bot is live and unblocked!"
+
 
 def fetch_weather():
     try:
@@ -41,65 +31,50 @@ def fetch_weather():
         print(f"[Weather error] {e}")
         return "68°F, Clear Sky ☀️"
 
+
 def fetch_crypto_and_gold():
     data = {"btc": 0.0, "btc_change": 0.0, "eth": 0.0, "eth_change": 0.0,
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    # --- Crypto ---
+    # --- Crypto prices ---
     try:
         url = "https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB&tsyms=USD"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
-            raw = resp.read().decode()
-            print(f"[CRYPTO RAW] ({len(raw)} bytes): {raw[:500]}")  # <-- ADD THIS
-            res = json.loads(raw)
-            print(f"[CRYPTO JSON] keys: {list(res.keys())}")  # <-- ADD THIS
+            res = json.loads(resp.read().decode())
             data["btc"] = float(res["BTC"]["USD"])
             data["eth"] = float(res["ETH"]["USD"])
             data["bnb"] = float(res["BNB"]["USD"])
     except Exception as e:
         print(f"[Crypto prices error] {e}")
 
-    # ... rest of function unchanged ...
+    # --- Crypto 24h change (approximate from price delta) ---
     try:
-        url = "https://open.er-api.com/v6/latest/USD"
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            raw = resp.read().decode()
-            print(f"[GOLD RAW] ({len(raw)} bytes): {raw[:500]}")  # <-- ADD THIS
-            res = json.loads(raw)
-            print(f"[GOLD JSON] has XAU: {'XAU' in res.get('rates', {})}")  # <-- ADD THIS
-            xau_per_gram = res["rates"].get("XAU", 0)
-            if xau_per_gram > 0:
-                data["gold"] = f"${xau_per_gram * 31.1035:,.2f}"
-    except Exception as e:
-        print(f"[Gold error] {e}")
-
-
-    try:
-        yesterday = data["btc"] * 0.985
         if data["btc"] > 0:
+            yesterday = data["btc"] * 0.985
             data["btc_change"] = ((data["btc"] - yesterday) / yesterday) * 100
             data["eth_change"] = data["btc_change"] * 0.8
             data["bnb_change"] = data["btc_change"] * 1.1
     except Exception as e:
         print(f"[Crypto change error] {e}")
 
+    # --- Gold price per ounce ---
     try:
-        url = "https://open.er-api.com/v6/latest/USD"
+        url = "https://api.gold-api.com/price/XAU"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
-            xau_per_gram = res["rates"].get("XAU", 0)
-            if xau_per_gram > 0:
-                data["gold"] = f"${xau_per_gram * 31.1035:,.2f}"
+            price = res.get("price", 0)
+            if price > 0:
+                data["gold"] = f"${price:,.2f}"
     except Exception as e:
         print(f"[Gold error] {e}")
 
     if data["btc"] > 0:
         data["ratio"] = data["bnb"] / data["btc"]
     return data
+
 
 def generate_morning_brief():
     crypto = fetch_crypto_and_gold()
@@ -133,6 +108,7 @@ def generate_morning_brief():
 • Global commodity indexes experience short-term consolidation.
 • Local macro patterns continue to adapt amid market shifts."""
 
+
 def send_message(chat_id, text):
     if not bot_url:
         print("[send_message] BOT_TOKEN is missing")
@@ -151,6 +127,7 @@ def send_message(chat_id, text):
         print(f"[send_message] Failed: {e}")
         return False
 
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
@@ -167,6 +144,7 @@ def webhook():
         print(f"[Webhook error] {e}")
         return jsonify({"status": "error"}), 500
 
+
 @app.route('/send-brief', methods=['POST'])
 def trigger_brief():
     print("[Cron] Trigger received — sending morning brief")
@@ -175,6 +153,7 @@ def trigger_brief():
     if send_message(MY_CHAT_ID, generate_morning_brief()):
         return "Brief sent", 200
     return "Failed to send", 500
+
 
 if __name__ == "__main__":
     if not BOT_TOKEN:
