@@ -37,17 +37,19 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    # --- Crypto prices (CoinGecko) ---
+        # --- Crypto prices (CoinGecko) ---
     try:
         url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
+            print(f"[CRYPTO RESPONSE] {res}")
             data["btc"] = float(res["bitcoin"]["usd"])
             data["eth"] = float(res["ethereum"]["usd"])
             data["bnb"] = float(res["binancecoin"]["usd"])
     except Exception as e:
         print(f"[Crypto prices error] {e}")
+
 
     # --- Crypto 24h change (approximate) ---
     try:
