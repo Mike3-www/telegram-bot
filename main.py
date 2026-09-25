@@ -5,6 +5,7 @@ import os
 import urllib.request
 import json
 import time
+import re
 from flask import Flask, request, jsonify
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -43,40 +44,20 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    # BTC
+    # --- Crypto via CoinGecko ---
     try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
-            data["btc"] = float(res["price"])
-        print(f"[BINANCE-BTC] price={data['btc']}", flush=True)
+            data["btc"] = float(res["bitcoin"]["usd"])
+            data["eth"] = float(res["ethereum"]["usd"])
+            data["bnb"] = float(res["binancecoin"]["usd"])
+        print(f"[COINGECKO] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']}", flush=True)
     except Exception as e:
-        print(f"[BINANCE-BTC] ERROR: {e}", flush=True)
+        print(f"[COINGECKO] ERROR: {e}", flush=True)
 
-    # ETH
-    try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode())
-            data["eth"] = float(res["price"])
-        print(f"[BINANCE-ETH] price={data['eth']}", flush=True)
-    except Exception as e:
-        print(f"[BINANCE-ETH] ERROR: {e}", flush=True)
-
-    # BNB
-    try:
-        url = "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT"
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode())
-            data["bnb"] = float(res["price"])
-        print(f"[BINANCE-BNB] price={data['bnb']}", flush=True)
-    except Exception as e:
-        print(f"[BINANCE-BNB] ERROR: {e}", flush=True)
-
-    # 24h change
+    # --- Crypto 24h change ---
     try:
         if data["btc"] > 0:
             yesterday = data["btc"] * 0.985
@@ -86,7 +67,7 @@ def fetch_crypto_and_gold():
     except Exception as e:
         print(f"[Crypto change error] {e}", flush=True)
 
-    # Gold
+    # --- Gold ---
     try:
         url = "https://api.gold-api.com/price/XAU"
         req = urllib.request.Request(url, headers=headers)
@@ -119,21 +100,23 @@ def fetch_exchange_rates():
 
 
 def fetch_headlines():
+    """Fetch headlines from Cointelegraph RSS feed."""
     try:
-        url = "https://www.reddit.com/r/cryptocurrency/hot/.json?limit=5"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (compatible; MorningBot/1.0)'})
+        url = "https://cointelegraph.com/rss"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read().decode()
-            print(f"[REDDIT RAW] {raw[:200]}", flush=True)
-            res = json.loads(raw)
-            posts = res.get("data", {}).get("children", [])
+            print(f"[RSS RAW] {raw[:200]}", flush=True)
+            # Parse XML/HTML for titles
+            titles = re.findall(r'<title>([^<]+)</title>', raw)
+            # First title is usually the feed name, skip it
             headlines = []
-            for post in posts[:4]:
-                title = post.get("data", {}).get("title", "")
-                if title and len(title) < 150:
+            for title in titles[1:6]:  # skip first, take next 5
+                title = title.strip()
+                if title and len(title) < 150 and not title.startswith('Cointelegraph'):
                     headlines.append(f"• {title}")
-            result = "\n".join(headlines) if headlines else None
-            print(f"[REDDIT] fetched {len(headlines)} headlines", flush=True)
+            result = "\n".join(headlines[:4]) if headlines else None
+            print(f"[RSS] fetched {len(headlines)} headlines: {result}", flush=True)
             return result
     except Exception as e:
         print(f"[Headlines error] {e}", flush=True)
