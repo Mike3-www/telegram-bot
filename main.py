@@ -4,10 +4,15 @@ import json
 import time
 from flask import Flask, request, jsonify
 
-BOT_TOKEN = os.environ.get("8925804109:AAFGJe-Vmr5HcyagsYWgp928XtFEHpE1nAg", "")print(f"DEBUG_BOT_TOKEN: [{BOT_TOKEN}]")
+BOT_TOKEN = os.environ.get(8894073430:AAHQ9XxP0CpGa-qZrsLQZZywAbL1GAca6s8, "")
+print(f"DEBUG_BOT_TOKEN: [{BOT_TOKEN}]")
+MY_CHAT_ID = os.environ.get(1685205799, "")
+WEBHOOK_URL = os.environ.get(https://telegram-bot-bpcp.onrender.com/webhook, "")
 
-MY_CHAT_ID = os.environ.get("1685205799", "")
-WEBHOOK_URL = os.environ.get("https://telegram-bot-bpcp.onrender.com/webhook", "")
+bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
+
+app = Flask('')
+
 
 
 bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
