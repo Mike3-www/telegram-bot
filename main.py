@@ -44,18 +44,17 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    # --- Crypto via CoinGecko ---
+    # --- Crypto via CoinCap ---
     try:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd"
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode())
-            data["btc"] = float(res["bitcoin"]["usd"])
-            data["eth"] = float(res["ethereum"]["usd"])
-            data["bnb"] = float(res["binancecoin"]["usd"])
-        print(f"[COINGECKO] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']}", flush=True)
+        for symbol, key in [("bitcoin", "btc"), ("ethereum", "eth"), ("binancecoin", "bnb")]:
+            url = f"https://api.coincap.io/v2/assets/{symbol}"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                res = json.loads(resp.read().decode())
+                data[key] = float(res["data"]["priceUsd"])
+        print(f"[COINCAP] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']}", flush=True)
     except Exception as e:
-        print(f"[COINGECKO] ERROR: {e}", flush=True)
+        print(f"[COINCAP] ERROR: {e}", flush=True)
 
     # --- Crypto 24h change ---
     try:
@@ -106,17 +105,14 @@ def fetch_headlines():
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read().decode()
-            print(f"[RSS RAW] {raw[:200]}", flush=True)
-            # Parse XML/HTML for titles
             titles = re.findall(r'<title>([^<]+)</title>', raw)
-            # First title is usually the feed name, skip it
             headlines = []
-            for title in titles[1:6]:  # skip first, take next 5
+            for title in titles[1:6]:
                 title = title.strip()
                 if title and len(title) < 150 and not title.startswith('Cointelegraph'):
                     headlines.append(f"• {title}")
             result = "\n".join(headlines[:4]) if headlines else None
-            print(f"[RSS] fetched {len(headlines)} headlines: {result}", flush=True)
+            print(f"[RSS] fetched {len(headlines)} headlines", flush=True)
             return result
     except Exception as e:
         print(f"[Headlines error] {e}", flush=True)
