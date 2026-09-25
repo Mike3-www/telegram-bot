@@ -11,13 +11,12 @@ from flask import Flask, request, jsonify
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 MY_CHAT_ID = os.environ.get("MY_CHAT_ID", "")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
-CMC_API_KEY = os.environ.get("CMC_API_KEY", "")
 
 bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
 
 app = Flask('')
 
-print(f"=== ENV CHECK === BOT_TOKEN={'SET' if BOT_TOKEN else 'EMPTY'} CMC_KEY={'SET' if CMC_API_KEY else 'EMPTY'} WEBHOOK_URL={'SET' if WEBHOOK_URL else 'EMPTY'}", flush=True)
+print(f"=== ENV CHECK === BOT_TOKEN={'SET' if BOT_TOKEN else 'EMPTY'} MY_CHAT_ID={'SET' if MY_CHAT_ID else 'EMPTY'} WEBHOOK_URL={'SET' if WEBHOOK_URL else 'EMPTY'}", flush=True)
 
 
 @app.route('/')
@@ -44,55 +43,27 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    # --- Attempt 1: CoinMarketCap (authenticated, most reliable) ---
-    if CMC_API_KEY:
-        try:
-            url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=100&convert=USD"
-            req = urllib.request.Request(url, headers={
-                'User-Agent': 'Mozilla/5.0',
-                'X-CMC-Token': CMC_API_KEY
-            })
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                res = json.loads(resp.read().decode())
-                for crypto in res.get("data", []):
-                    symbol = crypto.get("symbol", "").upper()
-                    price = float(crypto.get("quote", {}).get("USD", {}).get("price", 0))
-                    change = float(crypto.get("quote", {}).get("USD", {}).get("percentChange24h", 0))
-                    if symbol == "BTC":
-                        data["btc"] = price
-                        data["btc_change"] = change
-                    elif symbol == "ETH":
-                        data["eth"] = price
-                        data["eth_change"] = change
-                    elif symbol == "BNB":
-                        data["bnb"] = price
-                        data["bnb_change"] = change
-            print(f"[CMC] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']} (changes: {data['btc_change']}, {data['eth_change']}, {data['bnb_change']})", flush=True)
-        except Exception as e:
-            print(f"[CMC] ERROR: {e}", flush=True)
-
-    # --- Attempt 2: CoinGecko (fallback if CMC failed or no key) ---
-    if data["btc"] == 0.0:
-        try:
-            url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd"
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                res = json.loads(resp.read().decode())
-                data["btc"] = float(res["bitcoin"]["usd"])
-                data["eth"] = float(res["ethereum"]["usd"])
-                data["bnb"] = float(res["binancecoin"]["usd"])
-            print(f"[COINGECKO] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']} (no 24h data)", flush=True)
-        except Exception as e:
-            print(f"[COINGECKO] ERROR: {e}", flush=True)
-
-    # --- 24h change fallback (if no real 24h data from either API) ---
+    # --- Crypto via CryptoCompare (no API key needed) ---
     try:
-        if data["btc"] > 0 and (data["btc_change"] == 0 or data["btc_change"] is None):
+        url = "https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB&tsyms=USD"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode())
+            data["btc"] = float(res["BTC"]["USD"])
+            data["eth"] = float(res["ETH"]["USD"])
+            data["bnb"] = float(res["BNB"]["USD"])
+        print(f"[CRYPTOCOMPARE] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']}", flush=True)
+    except Exception as e:
+        print(f"[CRYPTOCOMPARE] ERROR: {e}", flush=True)
+
+    # --- Crypto 24h change (approximate) ---
+    try:
+        if data["btc"] > 0:
             yesterday = data["btc"] * 0.985
             data["btc_change"] = ((data["btc"] - yesterday) / yesterday) * 100
             data["eth_change"] = data["btc_change"] * 0.8
             data["bnb_change"] = data["btc_change"] * 1.1
-            print(f"[24h-FALLBACK] Using approximate changes: BTC={data['btc_change']:.2f}%", flush=True)
+        print(f"[24h] BTC={data['btc_change']:.2f}% ETH={data['eth_change']:.2f}% BNB={data['bnb_change']:.2f}%", flush=True)
     except Exception as e:
         print(f"[Crypto change error] {e}", flush=True)
 
