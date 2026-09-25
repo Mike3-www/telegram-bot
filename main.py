@@ -46,16 +46,36 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
+    # --- Crypto ---
     try:
         url = "https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB&tsyms=USD"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode())
+            raw = resp.read().decode()
+            print(f"[CRYPTO RAW] ({len(raw)} bytes): {raw[:500]}")  # <-- ADD THIS
+            res = json.loads(raw)
+            print(f"[CRYPTO JSON] keys: {list(res.keys())}")  # <-- ADD THIS
             data["btc"] = float(res["BTC"]["USD"])
             data["eth"] = float(res["ETH"]["USD"])
             data["bnb"] = float(res["BNB"]["USD"])
     except Exception as e:
         print(f"[Crypto prices error] {e}")
+
+    # ... rest of function unchanged ...
+    try:
+        url = "https://open.er-api.com/v6/latest/USD"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode()
+            print(f"[GOLD RAW] ({len(raw)} bytes): {raw[:500]}")  # <-- ADD THIS
+            res = json.loads(raw)
+            print(f"[GOLD JSON] has XAU: {'XAU' in res.get('rates', {})}")  # <-- ADD THIS
+            xau_per_gram = res["rates"].get("XAU", 0)
+            if xau_per_gram > 0:
+                data["gold"] = f"${xau_per_gram * 31.1035:,.2f}"
+    except Exception as e:
+        print(f"[Gold error] {e}")
+
 
     try:
         yesterday = data["btc"] * 0.985
