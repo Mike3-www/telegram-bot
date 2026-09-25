@@ -73,20 +73,36 @@ def fetch_crypto_and_gold():
     return data
 
 
-def fetch_headlines():
-    """Get latest crypto/finance headlines from CryptoCompare news API."""
+def fetch_exchange_rates():
+    """Fetch PLN/USD and USD/PLN rates."""
     try:
-        url = "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&page=1&page_size=5"
+        url = "https://open.er-api.com/v6/latest/USD"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
-            if res.get("Response") == "Success" and res.get("Data"):
-                headlines = []
-                for article in res["Data"][:3]:
-                    title = article.get("title", "")
-                    if title:
-                        headlines.append(f"• {title}")
-                return "\n".join(headlines) if headlines else None
+            rates = res.get("rates", {})
+            pln_per_usd = rates.get("PLN", 0)
+            usd_per_pln = 1 / pln_per_usd if pln_per_usd > 0 else 0
+            return pln_per_usd, usd_per_pln
+    except Exception as e:
+        print(f"[Exchange rate error] {e}")
+    return 0, 0
+
+
+def fetch_headlines():
+    """Get top Reddit posts from r/cryptocurrency as headlines."""
+    try:
+        url = "https://www.reddit.com/r/cryptocurrency/hot/.json"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode())
+            posts = res.get("data", {}).get("children", [])
+            headlines = []
+            for post in posts[:4]:
+                title = post.get("data", {}).get("title", "")
+                if title and len(title) < 150:
+                    headlines.append(f"• {title}")
+            return "\n".join(headlines) if headlines else None
     except Exception as e:
         print(f"[Headlines error] {e}")
     return None
@@ -96,6 +112,7 @@ def generate_morning_brief():
     crypto = fetch_crypto_and_gold()
     weather = fetch_weather()
     headlines = fetch_headlines()
+    pln_per_usd, usd_per_pln = fetch_exchange_rates()
 
     btc_sign = "+" if crypto["btc_change"] >= 0 else ""
     eth_sign = "+" if crypto["eth_change"] >= 0 else ""
@@ -106,7 +123,6 @@ def generate_morning_brief():
     ratio_val = f"{crypto['ratio']:.6f}" if crypto["ratio"] > 0 else "0.006330"
     gold_val = crypto["gold"] if crypto["gold"] != "Unavailable" else "$2,652.40"
 
-    # Use real headlines or fall back to placeholders
     if headlines:
         news_section = headlines
     else:
@@ -130,7 +146,11 @@ def generate_morning_brief():
 
 🏆 *5. Gold Price (Per Ounce):* {gold_val}
 
-📰 *6. Top Financial/Crypto Headlines:*
+💱 *6. Currency Exchange Rates:*
+• **USD → PLN:** {pln_per_usd:,.2f} PLN
+• **USD → PLN:** {usd_per_pln:,.4f} USD per PLN
+
+📰 *20. Top Financial/Crypto Headlines:*
 {news_section}"""
 
 
