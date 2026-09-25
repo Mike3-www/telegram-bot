@@ -41,22 +41,22 @@ def fetch_crypto_and_gold():
     print("[FETCH_CRYPTO_AND_GOLD] CALLED", flush=True)
     data = {"btc": 0.0, "btc_change": 0.0, "eth": 0.0, "eth_change": 0.0,
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
-    # --- Crypto via CryptoCompare (no API key needed) ---
+    # --- Crypto via Yahoo Finance ---
     try:
-        url = "https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC,ETH,BNB&tsyms=USD"
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            res = json.loads(resp.read().decode())
-            data["btc"] = float(res["BTC"]["USD"])
-            data["eth"] = float(res["ETH"]["USD"])
-            data["bnb"] = float(res["BNB"]["USD"])
-        print(f"[CRYPTOCOMPARE] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']}", flush=True)
+        for symbol, key in [("BTC-USD", "btc"), ("ETH-USD", "eth"), ("BNB-USD", "bnb")]:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                res = json.loads(resp.read().decode())
+                price = float(res["chart"]["result"][0]["meta"]["regularMarketPrice"])
+                data[key] = price
+        print(f"[YAHOO] BTC={data['btc']} ETH={data['eth']} BNB={data['bnb']}", flush=True)
     except Exception as e:
-        print(f"[CRYPTOCOMPARE] ERROR: {e}", flush=True)
+        print(f"[YAHOO] ERROR: {e}", flush=True)
 
-    # --- Crypto 24h change (approximate) ---
+    # --- Crypto 24h change (approximate, since Yahoo doesn't give easy 24h change) ---
     try:
         if data["btc"] > 0:
             yesterday = data["btc"] * 0.985
