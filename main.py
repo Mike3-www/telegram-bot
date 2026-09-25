@@ -1,3 +1,6 @@
+import sys
+print(f"=== PYTHON START === version={sys.version}", flush=True)
+
 import os
 import urllib.request
 import json
@@ -11,6 +14,8 @@ WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 bot_url = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ""
 
 app = Flask('')
+
+print(f"=== ENV CHECK === BOT_TOKEN={'SET' if BOT_TOKEN else 'EMPTY'} MY_CHAT_ID={'SET' if MY_CHAT_ID else 'EMPTY'} WEBHOOK_URL={'SET' if WEBHOOK_URL else 'EMPTY'}", flush=True)
 
 
 @app.route('/')
@@ -28,37 +33,50 @@ def fetch_weather():
             temp_f = round(temp_c * 9/5 + 32)
             return f"{temp_f}°F"
     except Exception as e:
-        print(f"[Weather error] {e}")
+        print(f"[Weather error] {e}", flush=True)
         return "68°F, Clear Sky ☀️"
 
 
 def fetch_crypto_and_gold():
+    print("[FETCH_CRYPTO_AND_GOLD] CALLED", flush=True)
     data = {"btc": 0.0, "btc_change": 0.0, "eth": 0.0, "eth_change": 0.0,
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-    # --- Crypto via Binance (more reliable than CoinGecko) ---
+    # BTC
     try:
         url = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
             data["btc"] = float(res["price"])
+        print(f"[BINANCE-BTC] price={data['btc']}", flush=True)
+    except Exception as e:
+        print(f"[BINANCE-BTC] ERROR: {e}", flush=True)
+
+    # ETH
+    try:
         url = "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
             data["eth"] = float(res["price"])
+        print(f"[BINANCE-ETH] price={data['eth']}", flush=True)
+    except Exception as e:
+        print(f"[BINANCE-ETH] ERROR: {e}", flush=True)
+
+    # BNB
+    try:
         url = "https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT"
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
             data["bnb"] = float(res["price"])
-        print(f"[CRYPTO] BTC={data['btc']}, ETH={data['eth']}, BNB={data['bnb']}")
+        print(f"[BINANCE-BNB] price={data['bnb']}", flush=True)
     except Exception as e:
-        print(f"[Crypto prices error] {e}")
+        print(f"[BINANCE-BNB] ERROR: {e}", flush=True)
 
-    # --- Crypto 24h change ---
+    # 24h change
     try:
         if data["btc"] > 0:
             yesterday = data["btc"] * 0.985
@@ -66,9 +84,9 @@ def fetch_crypto_and_gold():
             data["eth_change"] = data["btc_change"] * 0.8
             data["bnb_change"] = data["btc_change"] * 1.1
     except Exception as e:
-        print(f"[Crypto change error] {e}")
+        print(f"[Crypto change error] {e}", flush=True)
 
-    # --- Gold ---
+    # Gold
     try:
         url = "https://api.gold-api.com/price/XAU"
         req = urllib.request.Request(url, headers=headers)
@@ -78,7 +96,7 @@ def fetch_crypto_and_gold():
             if price > 0:
                 data["gold"] = f"${price:,.2f}"
     except Exception as e:
-        print(f"[Gold error] {e}")
+        print(f"[Gold error] {e}", flush=True)
 
     if data["btc"] > 0:
         data["ratio"] = data["bnb"] / data["btc"]
@@ -96,18 +114,17 @@ def fetch_exchange_rates():
             usd_per_pln = 1 / pln_per_usd if pln_per_usd > 0 else 0
             return pln_per_usd, usd_per_pln
     except Exception as e:
-        print(f"[Exchange rate error] {e}")
+        print(f"[Exchange rate error] {e}", flush=True)
     return 0, 0
 
 
 def fetch_headlines():
-    """Get top Reddit posts from r/cryptocurrency."""
     try:
         url = "https://www.reddit.com/r/cryptocurrency/hot/.json?limit=5"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (compatible; MorningBot/1.0)'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = resp.read().decode()
-            print(f"[REDDIT RAW] {raw[:300]}")
+            print(f"[REDDIT RAW] {raw[:200]}", flush=True)
             res = json.loads(raw)
             posts = res.get("data", {}).get("children", [])
             headlines = []
@@ -116,10 +133,10 @@ def fetch_headlines():
                 if title and len(title) < 150:
                     headlines.append(f"• {title}")
             result = "\n".join(headlines) if headlines else None
-            print(f"[REDDIT] {len(headlines)} headlines fetched")
+            print(f"[REDDIT] fetched {len(headlines)} headlines", flush=True)
             return result
     except Exception as e:
-        print(f"[Headlines error] {e}")
+        print(f"[Headlines error] {e}", flush=True)
     return None
 
 
@@ -171,7 +188,7 @@ def generate_morning_brief():
 
 def send_message(chat_id, text):
     if not bot_url:
-        print("[send_message] BOT_TOKEN is missing")
+        print("[send_message] BOT_TOKEN is missing", flush=True)
         return False
     try:
         url = f"{bot_url}/sendMessage"
@@ -180,11 +197,11 @@ def send_message(chat_id, text):
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read().decode())
             if not result.get("ok"):
-                print(f"[send_message] Telegram error: {result.get('description')}")
+                print(f"[send_message] Telegram error: {result.get('description')}", flush=True)
                 return False
             return True
     except Exception as e:
-        print(f"[send_message] Failed: {e}")
+        print(f"[send_message] Failed: {e}", flush=True)
         return False
 
 
@@ -201,13 +218,13 @@ def webhook():
             send_message(chat_id, generate_morning_brief())
         return jsonify({"status": "ok"}), 200
     except Exception as e:
-        print(f"[Webhook error] {e}")
+        print(f"[Webhook error] {e}", flush=True)
         return jsonify({"status": "error"}), 500
 
 
 @app.route('/send-brief', methods=['POST'])
 def trigger_brief():
-    print("[Cron] Trigger received — sending morning brief")
+    print("[Cron] Trigger received — sending morning brief", flush=True)
     if not MY_CHAT_ID:
         return "MY_CHAT_ID not set", 500
     if send_message(MY_CHAT_ID, generate_morning_brief()):
@@ -217,12 +234,12 @@ def trigger_brief():
 
 if __name__ == "__main__":
     if not BOT_TOKEN:
-        print("ERROR: BOT_TOKEN environment variable is not set!")
+        print("ERROR: BOT_TOKEN environment variable is not set!", flush=True)
     else:
         try:
             urllib.request.urlopen(f"{bot_url}/deleteWebhook?drop_pending_updates=true", timeout=5)
         except Exception as e:
-            print(f"[Startup] deleteWebhook failed: {e}")
+            print(f"[Startup] deleteWebhook failed: {e}", flush=True)
         if WEBHOOK_URL:
             try:
                 req = urllib.request.Request(
@@ -232,11 +249,11 @@ if __name__ == "__main__":
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     result = json.loads(resp.read().decode())
                     if result.get("ok"):
-                        print(f"[Startup] Webhook set: {WEBHOOK_URL}")
+                        print(f"[Startup] Webhook set: {WEBHOOK_URL}", flush=True)
                     else:
-                        print(f"[Startup] setWebhook failed: {result}")
+                        print(f"[Startup] setWebhook failed: {result}", flush=True)
             except Exception as e:
-                print(f"[Startup] setWebhook error: {e}")
+                print(f"[Startup] setWebhook error: {e}", flush=True)
         else:
-            print("[Startup] WARNING: WEBHOOK_URL not set — webhook not registered")
+            print("[Startup] WARNING: WEBHOOK_URL not set — webhook not registered", flush=True)
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
