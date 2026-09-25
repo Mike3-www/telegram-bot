@@ -37,21 +37,17 @@ def fetch_crypto_and_gold():
             "bnb": 0.0, "bnb_change": 0.0, "ratio": 0.0, "gold": "Unavailable"}
     headers = {'User-Agent': 'Mozilla/5.0'}
 
-        # --- Crypto prices (CoinGecko) ---
     try:
         url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin&vs_currencies=usd"
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=10) as resp:
             res = json.loads(resp.read().decode())
-            print(f"[CRYPTO RESPONSE] {res}")
             data["btc"] = float(res["bitcoin"]["usd"])
             data["eth"] = float(res["ethereum"]["usd"])
             data["bnb"] = float(res["binancecoin"]["usd"])
     except Exception as e:
         print(f"[Crypto prices error] {e}")
 
-
-    # --- Crypto 24h change (approximate) ---
     try:
         if data["btc"] > 0:
             yesterday = data["btc"] * 0.985
@@ -61,7 +57,6 @@ def fetch_crypto_and_gold():
     except Exception as e:
         print(f"[Crypto change error] {e}")
 
-    # --- Gold price per ounce ---
     try:
         url = "https://api.gold-api.com/price/XAU"
         req = urllib.request.Request(url, headers=headers)
@@ -78,9 +73,30 @@ def fetch_crypto_and_gold():
     return data
 
 
+def fetch_headlines():
+    """Get latest crypto/finance headlines from CryptoCompare news API."""
+    try:
+        url = "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&page=1&page_size=5"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res = json.loads(resp.read().decode())
+            if res.get("Response") == "Success" and res.get("Data"):
+                headlines = []
+                for article in res["Data"][:3]:
+                    title = article.get("title", "")
+                    if title:
+                        headlines.append(f"• {title}")
+                return "\n".join(headlines) if headlines else None
+    except Exception as e:
+        print(f"[Headlines error] {e}")
+    return None
+
+
 def generate_morning_brief():
     crypto = fetch_crypto_and_gold()
     weather = fetch_weather()
+    headlines = fetch_headlines()
+
     btc_sign = "+" if crypto["btc_change"] >= 0 else ""
     eth_sign = "+" if crypto["eth_change"] >= 0 else ""
     bnb_sign = "+" if crypto["bnb_change"] >= 0 else ""
@@ -89,6 +105,15 @@ def generate_morning_brief():
     bnb_val = f"${crypto['bnb']:,.2f}" if crypto["bnb"] > 0 else "$585.10"
     ratio_val = f"{crypto['ratio']:.6f}" if crypto["ratio"] > 0 else "0.006330"
     gold_val = crypto["gold"] if crypto["gold"] != "Unavailable" else "$2,652.40"
+
+    # Use real headlines or fall back to placeholders
+    if headlines:
+        news_section = headlines
+    else:
+        news_section = """• Crypto asset markets reflect heightened whale accumulation.
+• Global commodity indexes experience short-term consolidation.
+• Local macro patterns continue to adapt amid market shifts."""
+
     return f"""🌅 *Your 9:00 AM Morning Briefing*
 
 📅 *1. Day & Date:* {time.strftime('%A, %B %d, %Y')}
@@ -106,9 +131,7 @@ def generate_morning_brief():
 🏆 *5. Gold Price (Per Ounce):* {gold_val}
 
 📰 *6. Top Financial/Crypto Headlines:*
-• Crypto asset markets reflect heightened whale accumulation.
-• Global commodity indexes experience short-term consolidation.
-• Local macro patterns continue to adapt amid market shifts."""
+{news_section}"""
 
 
 def send_message(chat_id, text):
